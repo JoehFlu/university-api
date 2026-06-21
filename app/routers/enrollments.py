@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import List
 
 from fastapi import APIRouter, HTTPException, status
@@ -34,6 +35,7 @@ def create_enrollment(enrollment: Enrollment):
             {
                 "student_id": student_object_id,
                 "course_id": course_object_id,
+                "enrolled_at": datetime.now(timezone.utc),
             }
         )
         return to_out(enrollments.find_one({"_id": result.inserted_id}), EnrollmentOut)

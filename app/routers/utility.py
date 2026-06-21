@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from faker import Faker
 from fastapi import APIRouter, HTTPException
 from pymongo.errors import PyMongoError
@@ -44,6 +46,7 @@ def seed_data():
             {
                 "student_id": student_id,
                 "course_id": fake.random_element(course_ids),
+                "enrolled_at": datetime.now(timezone.utc),
             }
         )
 

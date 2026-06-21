@@ -1,9 +1,8 @@
 import {
   BookOpen,
-  ChevronRight,
   CircleUserRound,
-  Code2,
   Database,
+  ExternalLink,
   GraduationCap,
   LayoutDashboard,
   LoaderCircle,
@@ -167,7 +166,11 @@ function App() {
   const currentTitle = titles[section];
 
   return (
-    <div className="app-shell">
+    <div
+      className={`app-shell ${
+        section === "overview" ? "app-shell--overview" : ""
+      }`}
+    >
       <aside className={`sidebar ${sidebarOpen ? "sidebar--open" : ""}`}>
         <div className="brand">
           <div className="brand__mark">
@@ -187,7 +190,6 @@ function App() {
         </div>
 
         <nav className="navigation">
-          <span className="navigation__label">Рабочее пространство</span>
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -204,12 +206,10 @@ function App() {
               >
                 <Icon size={19} />
                 <span>{item.label}</span>
-                {section === item.id && <ChevronRight size={16} />}
               </button>
             );
           })}
         </nav>
-
       </aside>
 
       {sidebarOpen && (
@@ -229,21 +229,25 @@ function App() {
           >
             <Menu size={21} />
           </button>
-          <div className="topbar__search">
-            <Search size={18} />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Поиск по текущему разделу..."
-            />
-          </div>
-          <button
-            className="icon-button"
-            onClick={() => void loadData()}
-            aria-label="Обновить данные"
-          >
-            <RefreshCw size={18} className={loading ? "spin" : ""} />
-          </button>
+          {section !== "overview" && (
+            <>
+              <div className="topbar__search">
+                <Search size={18} />
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Поиск по текущему разделу..."
+                />
+              </div>
+              <button
+                className="icon-button"
+                onClick={() => void loadData()}
+                aria-label="Обновить данные"
+              >
+                <RefreshCw size={18} className={loading ? "spin" : ""} />
+              </button>
+            </>
+          )}
           <div className="profile">
             <div className="profile__avatar">A</div>
             <div>
@@ -427,24 +431,18 @@ function Overview({
       label: "Студенты",
       value: students.length,
       note: "Активных профилей",
-      icon: Users,
-      tone: "blue",
       section: "students" as Section,
     },
     {
       label: "Курсы",
       value: courses.length,
       note: "Доступны сейчас",
-      icon: BookOpen,
-      tone: "violet",
       section: "courses" as Section,
     },
     {
       label: "Зачисления",
       value: enrollments.length,
       note: "Активных зачислений",
-      icon: UserPlus,
-      tone: "amber",
       section: "enrollments" as Section,
     },
   ];
@@ -457,16 +455,12 @@ function Overview({
     <>
       <section className="stats-grid">
         {stats.map((stat) => {
-          const Icon = stat.icon;
           return (
             <button
               className="stat-card"
               key={stat.label}
               onClick={() => onNavigate(stat.section)}
             >
-              <div className={`stat-card__icon stat-card__icon--${stat.tone}`}>
-                <Icon size={25} />
-              </div>
               <div className="stat-card__body">
                 <span>{stat.label}</span>
                 <strong>{stat.value}</strong>
@@ -504,9 +498,6 @@ function Overview({
                       <tr key={item.id}>
                         <td>
                           <div className="person-cell person-cell--compact">
-                            <div className="avatar avatar--small">
-                              {initials(student?.name ?? "?")}
-                            </div>
                             <div>
                               <strong>
                                 {student?.name ?? "Неизвестный студент"}
@@ -527,7 +518,9 @@ function Overview({
                           </span>
                         </td>
                         <td>
-                          <span className="recent-table__date">—</span>
+                          <span className="recent-table__date">
+                            {formatEnrollmentDate(item.enrolled_at)}
+                          </span>
                         </td>
                       </tr>
                     );
@@ -553,6 +546,7 @@ function Overview({
               <QuickAction
                 icon={UserPlus}
                 label="Добавить студента"
+                primary
                 onClick={() => onOpenModal({ type: "student" })}
               />
               <QuickAction
@@ -566,16 +560,13 @@ function Overview({
                 onClick={() => onOpenModal({ type: "enrollment" })}
               />
               <a
-                className="quick-action"
+                className="quick-action quick-action--link"
                 href="http://localhost:8000/docs"
                 target="_blank"
                 rel="noreferrer"
               >
-                <span className="quick-action__icon">
-                  <Code2 size={17} />
-                </span>
                 <strong>Открыть API-документацию</strong>
-                <ChevronRight size={16} />
+                <ExternalLink size={15} />
               </a>
             </div>
           </div>
@@ -585,18 +576,14 @@ function Overview({
               <h2>Состояние системы</h2>
             </div>
             <div className="system-list">
+              <SystemRow label="API" value={health ? "работает" : "недоступен"} ok={!!health} />
               <SystemRow
-                label="API"
-                value={health ? "Работает" : "Недоступен"}
+                label="База данных (MongoDB)"
+                value={health ? "подключена" : "отключена"}
                 ok={!!health}
               />
-              <SystemRow
-                label="База данных"
-                value={health ? "Подключена" : "Отключена"}
-                ok={!!health}
-              />
-              <SystemRow label="Версия API" value={health?.version ?? "—"} />
-              <SystemRow label="Сервис" value={health?.service ?? "—"} />
+              <SystemRow label="Версия API" value={health?.version ?? "—"} ok={!!health} />
+              <SystemRow label="Сервис" value={health?.service ?? "—"} ok={!!health} />
             </div>
             <div className="system-card__action">
               <button
@@ -793,6 +780,7 @@ function EnrollmentsTable({
                 <th>Студент</th>
                 <th>Курс</th>
                 <th>Статус</th>
+                <th>Дата</th>
                 <th aria-label="Действия" />
               </tr>
             </thead>
@@ -823,6 +811,11 @@ function EnrollmentsTable({
                       <span className="status-badge">
                         <i />
                         Активно
+                      </span>
+                    </td>
+                    <td>
+                      <span className="recent-table__date">
+                        {formatEnrollmentDate(enrollment.enrolled_at)}
                       </span>
                     </td>
                     <td>
@@ -1150,11 +1143,9 @@ function SystemRow({
 }) {
   return (
     <div className="system-row">
-      <span>{label}</span>
-      <strong>
-        {ok !== undefined && <i className={ok ? "" : "off"} />}
-        {value}
-      </strong>
+      {ok !== undefined && <i className={ok ? "" : "off"} />}
+      <span>{label}:</span>
+      <strong>{value}</strong>
     </div>
   );
 }
@@ -1163,18 +1154,20 @@ function QuickAction({
   icon: Icon,
   label,
   onClick,
+  primary = false,
 }: {
   icon: typeof Users;
   label: string;
   onClick: () => void;
+  primary?: boolean;
 }) {
   return (
-    <button className="quick-action" onClick={onClick}>
-      <span className="quick-action__icon">
-        <Icon size={17} />
-      </span>
+    <button
+      className={`quick-action ${primary ? "quick-action--primary" : ""}`}
+      onClick={onClick}
+    >
+      <Icon size={17} />
       <strong>{label}</strong>
-      <ChevronRight size={16} />
     </button>
   );
 }
@@ -1198,6 +1191,21 @@ function pluralize(value: number, one: string, few: string, many: string) {
   if (mod10 === 1 && mod100 !== 11) return one;
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
   return many;
+}
+
+function formatEnrollmentDate(value?: string | null) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  })
+    .format(date)
+    .replace(" г.", "");
 }
 
 export default App;

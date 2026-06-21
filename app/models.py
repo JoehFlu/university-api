@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -97,11 +98,16 @@ class EnrollmentOut(Enrollment):
                 "student_id": "665f1d8b2c4a7e0012ab34cd",
                 "course_id": "665f1dc62c4a7e0012ab34ce",
                 "id": "665f1df82c4a7e0012ab34cf",
+                "enrolled_at": "2026-06-21T18:00:00Z",
             }
         }
     )
 
     id: str = Field(examples=["665f1df82c4a7e0012ab34cf"])
+    enrolled_at: datetime | None = Field(
+        default=None,
+        examples=["2026-06-21T18:00:00Z"],
+    )
 
 
 class DeleteResponse(BaseModel):
