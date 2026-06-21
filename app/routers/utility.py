@@ -1,15 +1,17 @@
 from faker import Faker
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+from pymongo.errors import PyMongoError
 
 from app.config import APP_TITLE, APP_VERSION
-from app.db import courses, enrollments, students
+from app.db import client, courses, enrollments, students
+from app.models import HealthResponse, SeedResponse
 
 
 router = APIRouter(tags=["Utility"])
 fake = Faker()
 
 
-@router.post("/seed/")
+@router.post("/seed/", response_model=SeedResponse)
 def seed_data():
     students.delete_many({})
     courses.delete_many({})
@@ -48,10 +50,23 @@ def seed_data():
     return {"message": "Database seeded successfully"}
 
 
-@router.get("/health")
+@router.get(
+    "/health",
+    response_model=HealthResponse,
+    responses={503: {"description": "MongoDB is unavailable"}},
+)
 def health_check():
+    try:
+        client.admin.command("ping")
+    except PyMongoError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="MongoDB is unavailable",
+        ) from exc
+
     return {
         "status": "ok",
         "service": APP_TITLE,
         "version": APP_VERSION,
+        "mongodb": "ok",
     }

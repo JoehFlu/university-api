@@ -1,9 +1,17 @@
 from pymongo import ASCENDING, MongoClient
 
-from app.config import MONGO_DB_NAME, MONGO_URL
+from app.config import (
+    MONGO_DB_NAME,
+    MONGO_SERVER_SELECTION_TIMEOUT_MS,
+    MONGO_URL,
+)
 
 
-client = MongoClient(MONGO_URL, connect=False)
+client = MongoClient(
+    MONGO_URL,
+    connect=False,
+    serverSelectionTimeoutMS=MONGO_SERVER_SELECTION_TIMEOUT_MS,
+)
 db = client[MONGO_DB_NAME]
 
 students = db["students"]
