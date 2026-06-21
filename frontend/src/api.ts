@@ -25,6 +25,24 @@ export type Health = {
   mongodb: "ok";
 };
 
+export type Weather = {
+  city: string;
+  temperature: number;
+  condition: string;
+};
+
+export type MockLogin = {
+  status: "success";
+  token: string;
+  user: {
+    username: string;
+  };
+};
+
+export type MockUpdate = {
+  status: "updated";
+};
+
 type ApiErrorBody = {
   detail?: string | Array<{ msg: string }>;
 };
@@ -59,6 +77,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const api = {
   health: () => request<Health>("/health"),
   seed: () => request<{ message: string }>("/seed/", { method: "POST" }),
+  mockWeather: () => request<Weather>("/external/weather"),
+  mockLogin: () =>
+    request<MockLogin>("/external/auth/login", { method: "POST" }),
+  mockProfileUpdate: () =>
+    request<MockUpdate>("/external/user/update", { method: "PUT" }),
 
   students: () => request<Student[]>("/students/"),
   createStudent: (payload: Omit<Student, "id">) =>

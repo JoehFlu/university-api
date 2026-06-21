@@ -150,14 +150,6 @@ button:disabled {
   box-shadow: none;
 }
 
-.status-badge i {
-  display: block;
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: currentColor;
-}
-
 .main {
   min-height: 100vh;
   margin-left: 252px;
@@ -639,18 +631,6 @@ tbody tr:hover {
 
 .course-cell svg {
   color: var(--primary);
-}
-
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 8px;
-  color: #047857;
-  border-radius: 999px;
-  background: #d1fae5;
-  font-size: 8px;
-  font-weight: 700;
 }
 
 .course-grid {
@@ -1225,19 +1205,15 @@ tbody tr:hover {
 }
 
 .recent-table th:nth-child(1) {
-  width: 38%;
+  width: 45%;
 }
 
 .recent-table th:nth-child(2) {
-  width: 28%;
+  width: 35%;
 }
 
 .recent-table th:nth-child(3) {
-  width: 19%;
-}
-
-.recent-table th:nth-child(4) {
-  width: 15%;
+  width: 20%;
 }
 
 .person-cell--compact {
@@ -1339,6 +1315,119 @@ tbody tr:hover {
 .system-card__action {
   padding: 0 22px 22px;
   border-top: 0;
+}
+
+.service-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #047857;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.service-indicator::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+  content: "";
+}
+
+.service-indicator--off {
+  color: #b91c1c;
+}
+
+.service-indicator--off::before {
+  background: var(--danger);
+}
+
+.castlemock-card__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.castlemock-card__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--primary);
+  font-size: 9px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.castlemock-card__link:hover {
+  color: var(--primary-dark);
+}
+
+.castlemock-card__body {
+  display: grid;
+  gap: 15px;
+  padding: 18px 22px 22px;
+}
+
+.mock-weather {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: var(--primary);
+}
+
+.mock-weather > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.mock-weather strong,
+.mock-weather span {
+  display: block;
+}
+
+.mock-weather strong {
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mock-weather span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.mock-weather .icon-button {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: 4px;
+}
+
+.castlemock-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.castlemock-actions .button {
+  min-height: 38px;
+  padding: 0 10px;
+  border-radius: 4px;
+  font-size: 9px;
+}
+
+.castlemock-card__message {
+  margin: -3px 0 0;
+  color: #047857;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.castlemock-card__message--error {
+  color: #b91c1c;
 }
 
 .button--outline {

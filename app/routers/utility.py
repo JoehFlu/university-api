@@ -28,7 +28,7 @@ def seed_data():
                 "email": fake.unique.email(),
             }
         ).inserted_id
-        for _ in range(5)
+        for _ in range(10)
     ]
 
     course_ids = [

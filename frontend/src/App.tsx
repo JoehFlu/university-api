@@ -1,24 +1,27 @@
 import {
   BookOpen,
   CircleUserRound,
+  CloudSun,
   Database,
   ExternalLink,
   GraduationCap,
   LayoutDashboard,
   LoaderCircle,
+  LogIn,
   Menu,
   Pencil,
   Plus,
   RefreshCw,
   Search,
   Trash2,
+  UserCog,
   UserPlus,
   Users,
   X,
 } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
-import { api, Course, Enrollment, Health, Student } from "./api";
+import { api, Course, Enrollment, Health, Student, Weather } from "./api";
 
 type Section = "overview" | "students" | "courses" | "enrollments";
 type Modal =
@@ -44,6 +47,10 @@ function App() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [health, setHealth] = useState<Health | null>(null);
+  const [weather, setWeather] = useState<Weather | null>(null);
+  const [castleMockMessage, setCastleMockMessage] = useState("");
+  const [castleMockError, setCastleMockError] = useState("");
+  const [castleMockLoading, setCastleMockLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [healthChecking, setHealthChecking] = useState(false);
   const [mutating, setMutating] = useState(false);
@@ -83,6 +90,28 @@ function App() {
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  const loadMockWeather = useCallback(async () => {
+    setCastleMockLoading(true);
+    setCastleMockError("");
+    try {
+      setWeather(await api.mockWeather());
+      setCastleMockMessage("Прогноз получен");
+    } catch (requestError) {
+      setWeather(null);
+      setCastleMockError(
+        requestError instanceof Error
+          ? requestError.message
+          : "CastleMock недоступен",
+      );
+    } finally {
+      setCastleMockLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadMockWeather();
+  }, [loadMockWeather]);
 
   const showNotice = (message: string) => {
     setNotice(message);
@@ -128,6 +157,26 @@ function App() {
       );
     } finally {
       setHealthChecking(false);
+    }
+  };
+
+  const runCastleMockAction = async (
+    action: () => Promise<unknown>,
+    message: string,
+  ) => {
+    setCastleMockLoading(true);
+    setCastleMockError("");
+    try {
+      await action();
+      setCastleMockMessage(message);
+    } catch (requestError) {
+      setCastleMockError(
+        requestError instanceof Error
+          ? requestError.message
+          : "CastleMock недоступен",
+      );
+    } finally {
+      setCastleMockLoading(false);
     }
   };
 
@@ -324,6 +373,23 @@ function App() {
                   onOpenModal={setModal}
                   onCheckHealth={() => void checkHealth()}
                   healthChecking={healthChecking}
+                  weather={weather}
+                  castleMockMessage={castleMockMessage}
+                  castleMockError={castleMockError}
+                  castleMockLoading={castleMockLoading}
+                  onRefreshWeather={() => void loadMockWeather()}
+                  onMockLogin={() =>
+                    void runCastleMockAction(
+                      api.mockLogin,
+                      "Авторизация через CastleMock успешна",
+                    )
+                  }
+                  onMockProfileUpdate={() =>
+                    void runCastleMockAction(
+                      api.mockProfileUpdate,
+                      "Профиль обновлён через CastleMock",
+                    )
+                  }
                 />
               )}
               {section === "students" && (
@@ -416,6 +482,13 @@ function Overview({
   onOpenModal,
   onCheckHealth,
   healthChecking,
+  weather,
+  castleMockMessage,
+  castleMockError,
+  castleMockLoading,
+  onRefreshWeather,
+  onMockLogin,
+  onMockProfileUpdate,
 }: {
   students: Student[];
   courses: Course[];
@@ -425,6 +498,13 @@ function Overview({
   onOpenModal: (modal: Modal) => void;
   onCheckHealth: () => void;
   healthChecking: boolean;
+  weather: Weather | null;
+  castleMockMessage: string;
+  castleMockError: string;
+  castleMockLoading: boolean;
+  onRefreshWeather: () => void;
+  onMockLogin: () => void;
+  onMockProfileUpdate: () => void;
 }) {
   const stats = [
     {
@@ -449,7 +529,7 @@ function Overview({
 
   const studentById = new Map(students.map((item) => [item.id, item]));
   const courseById = new Map(courses.map((item) => [item.id, item]));
-  const recent = enrollments.slice(-5).reverse();
+  const recent = enrollments.slice(-10).reverse();
 
   return (
     <>
@@ -486,7 +566,6 @@ function Overview({
                   <tr>
                     <th>Студент</th>
                     <th>Курс</th>
-                    <th>Статус</th>
                     <th>Дата</th>
                   </tr>
                 </thead>
@@ -509,12 +588,6 @@ function Overview({
                         <td>
                           <span className="recent-table__course">
                             {course?.title ?? "Неизвестный курс"}
-                          </span>
-                        </td>
-                        <td>
-                          <span className="status-badge">
-                            <i />
-                            Активно
                           </span>
                         </td>
                         <td>
@@ -594,6 +667,81 @@ function Overview({
                 <RefreshCw size={16} className={healthChecking ? "spin" : ""} />
                 Проверить снова
               </button>
+            </div>
+          </div>
+
+          <div className="panel castlemock-card">
+            <div className="panel__header">
+              <h2>CastleMock</h2>
+              <div className="castlemock-card__header-actions">
+                <span
+                  className={`service-indicator ${
+                    castleMockError ? "service-indicator--off" : ""
+                  }`}
+                >
+                  {castleMockError ? "Недоступен" : "Подключён"}
+                </span>
+                <a
+                  className="castlemock-card__link"
+                  href="http://localhost:8080/castlemock"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Открыть сервис
+                  <ExternalLink size={13} />
+                </a>
+              </div>
+            </div>
+            <div className="castlemock-card__body">
+              <div className="mock-weather">
+                <CloudSun size={22} />
+                <div>
+                  <strong>
+                    {weather
+                      ? `${weather.city}, ${weather.temperature} °C`
+                      : "Прогноз не загружен"}
+                  </strong>
+                  <span>{weather?.condition ?? "Тестовый endpoint погоды"}</span>
+                </div>
+                <button
+                  className="icon-button"
+                  onClick={onRefreshWeather}
+                  disabled={castleMockLoading}
+                  aria-label="Обновить тестовый прогноз"
+                >
+                  <RefreshCw
+                    size={15}
+                    className={castleMockLoading ? "spin" : ""}
+                  />
+                </button>
+              </div>
+              <div className="castlemock-actions">
+                <button
+                  className="button button--secondary"
+                  onClick={onMockLogin}
+                  disabled={castleMockLoading}
+                >
+                  <LogIn size={15} />
+                  Проверить вход
+                </button>
+                <button
+                  className="button button--secondary"
+                  onClick={onMockProfileUpdate}
+                  disabled={castleMockLoading}
+                >
+                  <UserCog size={15} />
+                  Обновить профиль
+                </button>
+              </div>
+              {(castleMockMessage || castleMockError) && (
+                <p
+                  className={`castlemock-card__message ${
+                    castleMockError ? "castlemock-card__message--error" : ""
+                  }`}
+                >
+                  {castleMockError || castleMockMessage}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -779,7 +927,6 @@ function EnrollmentsTable({
               <tr>
                 <th>Студент</th>
                 <th>Курс</th>
-                <th>Статус</th>
                 <th>Дата</th>
                 <th aria-label="Действия" />
               </tr>
@@ -806,12 +953,6 @@ function EnrollmentsTable({
                         <BookOpen size={17} />
                         <span>{course?.title ?? "Курс удалён"}</span>
                       </div>
-                    </td>
-                    <td>
-                      <span className="status-badge">
-                        <i />
-                        Активно
-                      </span>
                     </td>
                     <td>
                       <span className="recent-table__date">
