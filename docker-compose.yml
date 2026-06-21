@@ -1,4 +1,13 @@
 services:
+  frontend:
+    build: ./frontend
+    container_name: university_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+    restart: always
+
   api:
     build: .
     container_name: university_api

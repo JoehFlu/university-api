@@ -24,6 +24,10 @@
 ## Стек технологий
 
 - FastAPI
+- React
+- TypeScript
+- Vite
+- Nginx
 - Uvicorn
 - MongoDB
 - PyMongo
@@ -39,6 +43,7 @@
 
 ```text
 university-api/
+├── frontend/
 ├── app/
 │   ├── routers/
 │   ├── app.py
@@ -83,6 +88,11 @@ university-api/
    http://localhost:8000/docs
    ```
 
+4. Открой панель управления:
+   ```text
+   http://localhost:3000
+   ```
+
 ---
 
 ## Остановка
@@ -119,6 +129,7 @@ python3 --version
 
 | Сервис | URL | Описание |
 |--------|-----|-----------|
+| Frontend | [http://localhost:3000](http://localhost:3000) | Панель управления |
 | FastAPI Docs | [http://localhost:8000/docs](http://localhost:8000/docs) | Swagger UI |
 | OpenAPI schema | [http://localhost:8000/openapi.json](http://localhost:8000/openapi.json) | Схема API |
 | MongoDB | `mongodb://localhost:27017` | База данных |
