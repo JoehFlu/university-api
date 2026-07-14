@@ -43,6 +43,15 @@ export type MockUpdate = {
   status: "updated";
 };
 
+export type StudentCreate = Omit<Student, "id">;
+export type StudentUpdate = Partial<StudentCreate>;
+export type CourseCreate = Omit<Course, "id">;
+export type CourseUpdate = Partial<CourseCreate>;
+export type EnrollmentCreate = Pick<Enrollment, "student_id" | "course_id">;
+export type EnrollmentUpdate = Partial<EnrollmentCreate>;
+export type LoginRequest = { username: string; password: string };
+export type ProfileUpdateRequest = { name?: string; email?: string };
+
 type ApiErrorBody = {
   detail?: string | Array<{ msg: string }>;
 };
@@ -76,45 +85,59 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   health: () => request<Health>("/health"),
-  seed: () => request<{ message: string }>("/seed/", { method: "POST" }),
+  seed: () => request<{ message: string }>("/seed", { method: "POST" }),
   mockWeather: () => request<Weather>("/external/weather"),
-  mockLogin: () =>
-    request<MockLogin>("/external/auth/login", { method: "POST" }),
-  mockProfileUpdate: () =>
-    request<MockUpdate>("/external/user/update", { method: "PUT" }),
-
-  students: () => request<Student[]>("/students/"),
-  createStudent: (payload: Omit<Student, "id">) =>
-    request<Student>("/students/", {
+  mockLogin: (payload: LoginRequest) =>
+    request<MockLogin>("/external/auth/login", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  updateStudent: (id: string, payload: Omit<Student, "id">) =>
-    request<Student>(`/students/${id}`, {
+  mockProfileUpdate: (payload: ProfileUpdateRequest) =>
+    request<MockUpdate>("/external/user/update", {
       method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+
+  students: () => request<Student[]>("/students"),
+  student: (id: string) => request<Student>(`/students/${id}`),
+  createStudent: (payload: StudentCreate) =>
+    request<Student>("/students", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateStudent: (id: string, payload: StudentUpdate) =>
+    request<Student>(`/students/${id}`, {
+      method: "PATCH",
       body: JSON.stringify(payload),
     }),
   deleteStudent: (id: string) =>
     request(`/students/${id}`, { method: "DELETE" }),
 
-  courses: () => request<Course[]>("/courses/"),
-  createCourse: (payload: Omit<Course, "id">) =>
-    request<Course>("/courses/", {
+  courses: () => request<Course[]>("/courses"),
+  course: (id: string) => request<Course>(`/courses/${id}`),
+  createCourse: (payload: CourseCreate) =>
+    request<Course>("/courses", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  updateCourse: (id: string, payload: Omit<Course, "id">) =>
+  updateCourse: (id: string, payload: CourseUpdate) =>
     request<Course>(`/courses/${id}`, {
-      method: "PUT",
+      method: "PATCH",
       body: JSON.stringify(payload),
     }),
   deleteCourse: (id: string) =>
     request(`/courses/${id}`, { method: "DELETE" }),
 
-  enrollments: () => request<Enrollment[]>("/enrollments/"),
-  createEnrollment: (payload: Omit<Enrollment, "id">) =>
-    request<Enrollment>("/enrollments/", {
+  enrollments: () => request<Enrollment[]>("/enrollments"),
+  enrollment: (id: string) => request<Enrollment>(`/enrollments/${id}`),
+  createEnrollment: (payload: EnrollmentCreate) =>
+    request<Enrollment>("/enrollments", {
       method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateEnrollment: (id: string, payload: EnrollmentUpdate) =>
+    request<Enrollment>(`/enrollments/${id}`, {
+      method: "PATCH",
       body: JSON.stringify(payload),
     }),
   deleteEnrollment: (id: string) =>

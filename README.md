@@ -143,34 +143,37 @@ python3 --version
 
 | Метод | Эндпоинт | Описание |
 |-------|----------|-----------|
-| `POST` | `/seed/` | Заполнить базу тестовыми данными |
+| `POST` | `/seed` | Заполнить базу тестовыми данными |
 | `GET` | `/health` | Проверить состояние API |
 
 ### Students
 
 | Метод | Эндпоинт | Описание |
 |-------|----------|-----------|
-| `GET` | `/students/` | Получить список студентов |
-| `POST` | `/students/` | Создать студента |
-| `PUT` | `/students/{student_id}` | Обновить студента |
+| `GET` | `/students` | Получить список студентов |
+| `POST` | `/students` | Создать студента |
+| `GET` | `/students/{student_id}` | Получить студента |
+| `PATCH` | `/students/{student_id}` | Частично обновить студента |
 | `DELETE` | `/students/{student_id}` | Удалить студента |
 
 ### Courses
 
 | Метод | Эндпоинт | Описание |
 |-------|----------|-----------|
-| `GET` | `/courses/` | Получить список курсов |
-| `POST` | `/courses/` | Создать курс |
-| `PUT` | `/courses/{course_id}` | Обновить курс |
+| `GET` | `/courses` | Получить список курсов |
+| `POST` | `/courses` | Создать курс |
+| `GET` | `/courses/{course_id}` | Получить курс |
+| `PATCH` | `/courses/{course_id}` | Частично обновить курс |
 | `DELETE` | `/courses/{course_id}` | Удалить курс |
 
 ### Enrollments
 
 | Метод | Эндпоинт | Описание |
 |-------|----------|-----------|
-| `GET` | `/enrollments/` | Получить список записей |
-| `POST` | `/enrollments/` | Записать студента на курс |
-| `PUT` | `/enrollments/{enrollment_id}` | Обновить запись |
+| `GET` | `/enrollments` | Получить список записей |
+| `POST` | `/enrollments` | Записать студента на курс |
+| `GET` | `/enrollments/{enrollment_id}` | Получить запись |
+| `PATCH` | `/enrollments/{enrollment_id}` | Частично обновить запись |
 | `DELETE` | `/enrollments/{enrollment_id}` | Удалить запись |
 
 ### CastleMock
@@ -203,14 +206,14 @@ python3 --version
 
 ```bash
 curl http://localhost:8000/health
-curl -X POST http://localhost:8000/seed/
+curl -X POST http://localhost:8000/seed
 ```
 
 Работа со студентами:
 
 ```bash
-curl http://localhost:8000/students/
-curl -X POST http://localhost:8000/students/ \
+curl http://localhost:8000/students
+curl -X POST http://localhost:8000/students \
   -H "Content-Type: application/json" \
   -d '{"name":"Ivan Petrov","age":21,"email":"ivan@example.com"}'
 ```
@@ -219,8 +222,12 @@ CastleMock:
 
 ```bash
 curl http://localhost:8000/external/weather
-curl -X POST http://localhost:8000/external/auth/login
-curl -X PUT http://localhost:8000/external/user/update
+curl -X POST http://localhost:8000/external/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"demo_user","password":"secret"}'
+curl -X PUT http://localhost:8000/external/user/update \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Demo User"}'
 ```
 
 ---
@@ -230,4 +237,6 @@ curl -X PUT http://localhost:8000/external/user/update
 - Индексы создаются автоматически при старте приложения.
 - У студентов уникальный `email`.
 - У записей на курс уникальная комбинация `student_id + course_id`.
+- Запросы обновления используют `PATCH` и принимают один или несколько изменяемых полей.
+- Все идентификаторы MongoDB валидируются как 24-символьные шестнадцатеричные `ObjectId`.
 - Данные CastleMock сохраняются в `castlemock_data_persistent/`, поэтому не теряются после перезапуска контейнеров.

@@ -118,13 +118,16 @@ function App() {
     window.setTimeout(() => setNotice(""), 2600);
   };
 
-  const runMutation = async (action: () => Promise<unknown>, message: string) => {
+  const runMutation = async <T,>(
+    action: () => Promise<T>,
+    apply: (result: T) => void,
+    message: string,
+  ) => {
     setMutating(true);
     setError("");
     try {
-      await action();
+      apply(await action());
       setModal(null);
-      await loadData();
       showNotice(message);
     } catch (requestError) {
       setError(
@@ -139,7 +142,17 @@ function App() {
 
   const handleSeed = async () => {
     if (!window.confirm("Перезаполнить базу тестовыми данными?")) return;
-    await runMutation(api.seed, "Тестовые данные созданы");
+    setMutating(true);
+    setError("");
+    try {
+      await api.seed();
+      await loadData();
+      showNotice("Тестовые данные созданы");
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Не удалось заполнить базу");
+    } finally {
+      setMutating(false);
+    }
   };
 
   const checkHealth = async () => {
@@ -190,7 +203,15 @@ function App() {
       course: () => api.deleteCourse(id),
       enrollment: () => api.deleteEnrollment(id),
     };
-    await runMutation(actions[entity], "Запись удалена");
+    await runMutation(
+      actions[entity],
+      () => {
+        if (entity === "student") setStudents((items) => items.filter((item) => item.id !== id));
+        if (entity === "course") setCourses((items) => items.filter((item) => item.id !== id));
+        if (entity === "enrollment") setEnrollments((items) => items.filter((item) => item.id !== id));
+      },
+      "Запись удалена",
+    );
   };
 
   const titles: Record<Section, { title: string; subtitle: string }> = {
@@ -380,13 +401,13 @@ function App() {
                   onRefreshWeather={() => void loadMockWeather()}
                   onMockLogin={() =>
                     void runCastleMockAction(
-                      api.mockLogin,
+                      () => api.mockLogin({ username: "demo_user", password: "secret" }),
                       "Авторизация через CastleMock успешна",
                     )
                   }
                   onMockProfileUpdate={() =>
                     void runCastleMockAction(
-                      api.mockProfileUpdate,
+                      () => api.mockProfileUpdate({ name: "Demo User" }),
                       "Профиль обновлён через CastleMock",
                     )
                   }
@@ -434,6 +455,12 @@ function App() {
                 modal.item
                   ? api.updateStudent(modal.item.id, payload)
                   : api.createStudent(payload),
+              (student) =>
+                setStudents((items) =>
+                  modal.item
+                    ? items.map((item) => (item.id === student.id ? student : item))
+                    : [...items, student],
+                ),
               modal.item ? "Студент обновлён" : "Студент добавлен",
             )
           }
@@ -450,6 +477,12 @@ function App() {
                 modal.item
                   ? api.updateCourse(modal.item.id, payload)
                   : api.createCourse(payload),
+              (course) =>
+                setCourses((items) =>
+                  modal.item
+                    ? items.map((item) => (item.id === course.id ? course : item))
+                    : [...items, course],
+                ),
               modal.item ? "Курс обновлён" : "Курс добавлен",
             )
           }
@@ -464,6 +497,7 @@ function App() {
           onSubmit={(payload) =>
             void runMutation(
               () => api.createEnrollment(payload),
+              (enrollment) => setEnrollments((items) => [...items, enrollment]),
               "Студент зачислен на курс",
             )
           }

@@ -1,61 +1,93 @@
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    WithJsonSchema,
+    model_validator,
+)
 
 
-class Student(BaseModel):
+ObjectIdStr = Annotated[
+    str,
+    WithJsonSchema(
+        {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "minLength": 24,
+            "maxLength": 24,
+        }
+    ),
+]
+
+
+class ErrorResponse(BaseModel):
+    """A consistent error body returned by application endpoints."""
+
     model_config = ConfigDict(
-        str_strip_whitespace=True,
-        json_schema_extra={
-            "example": {
-                "name": "Ivan Petrov",
-                "age": 21,
-                "email": "ivan.petrov@example.com",
-            }
-        },
+        json_schema_extra={"example": {"detail": "Student not found"}}
     )
 
-    name: str = Field(
-        min_length=1,
-        max_length=100,
-        examples=["Ivan Petrov"],
-    )
+    detail: str
+
+
+class StudentFields(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    name: str = Field(min_length=1, max_length=100, examples=["Ivan Petrov"])
     age: int = Field(ge=16, le=120, examples=[21])
     email: EmailStr = Field(examples=["ivan.petrov@example.com"])
 
 
-class StudentOut(Student):
+class StudentCreate(StudentFields):
     model_config = ConfigDict(
+        str_strip_whitespace=True,
         json_schema_extra={
             "example": {
                 "name": "Ivan Petrov",
                 "age": 21,
                 "email": "ivan.petrov@example.com",
-                "id": "665f1d8b2c4a7e0012ab34cd",
-            }
-        }
-    )
-
-    id: str = Field(examples=["665f1d8b2c4a7e0012ab34cd"])
-
-
-class Course(BaseModel):
-    model_config = ConfigDict(
-        str_strip_whitespace=True,
-        json_schema_extra={
-            "example": {
-                "title": "Introduction to Python",
-                "description": "Python fundamentals for beginners",
             }
         },
     )
 
-    title: str = Field(
-        min_length=1,
-        max_length=200,
-        examples=["Introduction to Python"],
+
+class StudentUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    age: int | None = Field(default=None, ge=16, le=120)
+    email: EmailStr | None = None
+
+    @model_validator(mode="after")
+    def requires_a_field(self):
+        if not self.model_fields_set:
+            raise ValueError("At least one field must be provided")
+        return self
+
+
+class StudentResponse(StudentFields):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "id": "665f1d8b2c4a7e0012ab34cd",
+                "name": "Ivan Petrov",
+                "age": 21,
+                "email": "ivan.petrov@example.com",
+            }
+        }
     )
+
+    id: ObjectIdStr
+
+
+class CourseFields(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    title: str = Field(min_length=1, max_length=200, examples=["Introduction to Python"])
     description: str = Field(
         min_length=1,
         max_length=2000,
@@ -63,21 +95,46 @@ class Course(BaseModel):
     )
 
 
-class CourseOut(Course):
+class CourseCreate(CourseFields):
     model_config = ConfigDict(
+        str_strip_whitespace=True,
         json_schema_extra={
             "example": {
                 "title": "Introduction to Python",
                 "description": "Python fundamentals for beginners",
+            }
+        },
+    )
+
+
+class CourseUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = Field(default=None, min_length=1, max_length=2000)
+
+    @model_validator(mode="after")
+    def requires_a_field(self):
+        if not self.model_fields_set:
+            raise ValueError("At least one field must be provided")
+        return self
+
+
+class CourseResponse(CourseFields):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
                 "id": "665f1dc62c4a7e0012ab34ce",
+                "title": "Introduction to Python",
+                "description": "Python fundamentals for beginners",
             }
         }
     )
 
-    id: str = Field(examples=["665f1dc62c4a7e0012ab34ce"])
+    id: ObjectIdStr
 
 
-class Enrollment(BaseModel):
+class EnrollmentCreate(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -87,67 +144,48 @@ class Enrollment(BaseModel):
         }
     )
 
-    student_id: str = Field(examples=["665f1d8b2c4a7e0012ab34cd"])
-    course_id: str = Field(examples=["665f1dc62c4a7e0012ab34ce"])
+    student_id: ObjectIdStr
+    course_id: ObjectIdStr
 
 
-class EnrollmentOut(Enrollment):
+class EnrollmentUpdate(BaseModel):
+    student_id: ObjectIdStr | None = None
+    course_id: ObjectIdStr | None = None
+
+    @model_validator(mode="after")
+    def requires_a_field(self):
+        if not self.model_fields_set:
+            raise ValueError("At least one field must be provided")
+        return self
+
+
+class EnrollmentResponse(EnrollmentCreate):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
-                "student_id": "665f1d8b2c4a7e0012ab34cd",
-                "course_id": "665f1dc62c4a7e0012ab34ce",
                 "id": "665f1df82c4a7e0012ab34cf",
+                "student_id": "665f1d8b2c4a7e0012ab34cd",
+                "course_id": "665f1dc62c4a7e0012ab34ce",
                 "enrolled_at": "2026-06-21T18:00:00Z",
             }
         }
     )
 
-    id: str = Field(examples=["665f1df82c4a7e0012ab34cf"])
-    enrolled_at: datetime | None = Field(
-        default=None,
-        examples=["2026-06-21T18:00:00Z"],
-    )
+    id: ObjectIdStr
+    enrolled_at: datetime | None = Field(default=None)
 
 
 class DeleteResponse(BaseModel):
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "status": "deleted",
-                "entity": "student",
-                "id": "665f1d8b2c4a7e0012ab34cd",
-            }
-        }
-    )
-
     status: Literal["deleted"]
     entity: Literal["student", "course", "enrollment"]
-    id: str
+    id: ObjectIdStr
 
 
 class SeedResponse(BaseModel):
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {"message": "Database seeded successfully"}
-        }
-    )
-
     message: str
 
 
 class HealthResponse(BaseModel):
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "status": "ok",
-                "service": "University API",
-                "version": "0.1.0",
-                "mongodb": "ok",
-            }
-        }
-    )
-
     status: Literal["ok"]
     service: str
     version: str
@@ -155,19 +193,14 @@ class HealthResponse(BaseModel):
 
 
 class WeatherResponse(BaseModel):
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "city": "Berlin",
-                "temperature": 18,
-                "condition": "Cloudy",
-            }
-        }
-    )
-
     city: str
     temperature: int
     condition: str
+
+
+class LoginRequest(BaseModel):
+    username: str = Field(min_length=1, max_length=100, examples=["demo_user"])
+    password: str = Field(min_length=1, max_length=100, examples=["secret"])
 
 
 class LoginUser(BaseModel):
@@ -175,24 +208,21 @@ class LoginUser(BaseModel):
 
 
 class LoginResponse(BaseModel):
-    model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "status": "success",
-                "token": "abc123xyz",
-                "user": {"username": "demo_user"},
-            }
-        }
-    )
-
     status: Literal["success"]
     token: str
     user: LoginUser
 
 
-class UpdateResponse(BaseModel):
-    model_config = ConfigDict(
-        json_schema_extra={"example": {"status": "updated"}}
-    )
+class ProfileUpdateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    email: EmailStr | None = None
 
+    @model_validator(mode="after")
+    def requires_a_field(self):
+        if not self.model_fields_set:
+            raise ValueError("At least one field must be provided")
+        return self
+
+
+class UpdateResponse(BaseModel):
     status: Literal["updated"]

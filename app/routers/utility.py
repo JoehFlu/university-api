@@ -6,14 +6,14 @@ from pymongo.errors import PyMongoError
 
 from app.config import APP_TITLE, APP_VERSION
 from app.db import client, courses, enrollments, students
-from app.models import HealthResponse, SeedResponse
+from app.models import ErrorResponse, HealthResponse, SeedResponse
 
 
 router = APIRouter(tags=["Utility"])
 fake = Faker()
 
 
-@router.post("/seed/", response_model=SeedResponse)
+@router.post("/seed", response_model=SeedResponse)
 def seed_data():
     students.delete_many({})
     courses.delete_many({})
@@ -56,7 +56,7 @@ def seed_data():
 @router.get(
     "/health",
     response_model=HealthResponse,
-    responses={503: {"description": "MongoDB is unavailable"}},
+    responses={503: {"model": ErrorResponse, "description": "MongoDB is unavailable"}},
 )
 def health_check():
     try:
