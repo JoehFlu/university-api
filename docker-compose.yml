@@ -3,42 +3,135 @@ services:
     build: ./frontend
     container_name: university_frontend
     ports:
-      - "3000:80"
+      - "127.0.0.1:3000:80"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     restart: always
+    init: true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   api:
     build: .
     container_name: university_api
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
+    environment:
+      MONGO_URL: mongodb://mongo:27017/?replicaSet=rs0&retryWrites=true&w=majority
+      MONGO_DB_NAME: university_api
+      CASTLEMOCK_BASE_URL: http://castlemock:8080/castlemock/mock/rest/project/QXcx23/application
+      CASTLEMOCK_HEALTH_PATH: hE4lTh/health
     depends_on:
       mongo:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
     restart: always
+    init: true
+    stop_grace_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   mongo:
-    image: mongo:latest
+    image: mongo:8.0
     container_name: mongo
-    ports:
-      - "27017:27017"
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
     volumes:
-      - ./mongo_data:/data/db
+      - mongo_data:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ ping: 1 }).ok"]
-      interval: 10s
+      test:
+        - CMD-SHELL
+        - >-
+          mongosh --quiet --eval 'try { rs.status(); quit(db.hello().isWritablePrimary ? 0 : 1) } catch (e) { try { rs.initiate({_id:"rs0",members:[{_id:0,host:"mongo:27017"}]}); } catch (_) {} quit(1) }'
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 20
+      start_period: 5s
     restart: always
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  castlemock-init:
+    image: alpine:3.21.3
+    volumes:
+      - castlemock_data:/data
+      - ./castlemock_reference:/reference:ro
+      - ./backups:/backups
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        if [ ! -f /data/.initialized ]; then
+          mkdir -p /data/rest /data/logs
+          for directory in application method project resource response; do
+            test -d "/reference/rest/$${directory}"
+            cp -a "/reference/rest/$${directory}" /data/rest/
+          done
+          test -d /reference/user
+          cp -a /reference/user /data/user
+          mkdir -p /data/rest/event/v1
+          touch /data/.initialized
+        fi
+    restart: "no"
 
   castlemock:
-    image: castlemock/castlemock
+    image: castlemock/castlemock:v1.68
     container_name: castlemock
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
       - SERVER_PORT=8080
     volumes:
-      - ./castlemock_data_persistent:/root/.castlemock
+      - castlemock_data:/root/.castlemock
+    depends_on:
+      castlemock-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl -fsS http://localhost:8080/castlemock/mock/rest/project/QXcx23/application/hE4lTh/health >/dev/null
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  tests:
+    profiles: ["test"]
+    build:
+      context: .
+      args:
+        INSTALL_DEV: "true"
+    environment:
+      MONGO_URL: mongodb://mongo:27017/?replicaSet=rs0&retryWrites=true&w=majority
+      MONGO_DB_NAME: university_api_test
+      CASTLEMOCK_BASE_URL: http://castlemock:8080/castlemock/mock/rest/project/QXcx23/application
+      CASTLEMOCK_HEALTH_PATH: hE4lTh/health
+    depends_on:
+      mongo:
+        condition: service_healthy
+    command: ["pytest", "-q"]
+
+volumes:
+  mongo_data:
+  castlemock_data:

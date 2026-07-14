@@ -19,10 +19,11 @@ export type Enrollment = {
 };
 
 export type Health = {
-  status: "ok";
+  status: "ok" | "degraded";
   service: string;
   version: string;
   mongodb: "ok";
+  castlemock: "ok" | "unavailable";
 };
 
 export type Weather = {
@@ -31,16 +32,16 @@ export type Weather = {
   condition: string;
 };
 
-export type MockLogin = {
-  status: "success";
-  token: string;
-  user: {
-    username: string;
-  };
+export type StudentVerification = {
+  status: "verified";
+  reference_id: string;
+  provider: string;
 };
 
-export type MockUpdate = {
-  status: "updated";
+export type EnrollmentNotification = {
+  status: "sent";
+  message_id: string;
+  channel: "email";
 };
 
 export type StudentCreate = Omit<Student, "id">;
@@ -49,21 +50,42 @@ export type CourseCreate = Omit<Course, "id">;
 export type CourseUpdate = Partial<CourseCreate>;
 export type EnrollmentCreate = Pick<Enrollment, "student_id" | "course_id">;
 export type EnrollmentUpdate = Partial<EnrollmentCreate>;
-export type LoginRequest = { username: string; password: string };
-export type ProfileUpdateRequest = { name?: string; email?: string };
+export type StudentVerificationRequest = Pick<Student, "id" | "name" | "email">;
+export type EnrollmentNotificationRequest = {
+  enrollment_id: string;
+  student_name: string;
+  email: string;
+  course_title: string;
+};
 
 type ApiErrorBody = {
   detail?: string | Array<{ msg: string }>;
 };
 
+const REQUEST_TIMEOUT_MS = 10_000;
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`/api${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
-  });
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetch(`/api${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        Accept: "application/json",
+        ...(options?.body ? { "Content-Type": "application/json" } : {}),
+        ...options?.headers,
+      },
+    });
+  } catch (requestError) {
+    if (requestError instanceof DOMException && requestError.name === "AbortError") {
+      throw new Error("Сервис не ответил вовремя");
+    }
+    throw new Error("Нет соединения с сервисом");
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     let message = `Ошибка запроса (${response.status})`;
@@ -83,22 +105,37 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function requestAll<T>(path: string): Promise<T[]> {
+  const limit = 500;
+  const items: T[] = [];
+  for (let offset = 0; ; offset += limit) {
+    const separator = path.includes("?") ? "&" : "?";
+    const page = await request<T[]>(`${path}${separator}offset=${offset}&limit=${limit}`);
+    items.push(...page);
+    if (page.length < limit) return items;
+  }
+}
+
 export const api = {
   health: () => request<Health>("/health"),
   seed: () => request<{ message: string }>("/seed", { method: "POST" }),
   mockWeather: () => request<Weather>("/external/weather"),
-  mockLogin: (payload: LoginRequest) =>
-    request<MockLogin>("/external/auth/login", {
+  verifyStudent: (payload: StudentVerificationRequest) =>
+    request<StudentVerification>("/external/student-verification", {
+      method: "POST",
+      body: JSON.stringify({
+        student_id: payload.id,
+        name: payload.name,
+        email: payload.email,
+      }),
+    }),
+  sendEnrollmentNotification: (payload: EnrollmentNotificationRequest) =>
+    request<EnrollmentNotification>("/external/enrollment-notification", {
       method: "POST",
       body: JSON.stringify(payload),
     }),
-  mockProfileUpdate: (payload: ProfileUpdateRequest) =>
-    request<MockUpdate>("/external/user/update", {
-      method: "PUT",
-      body: JSON.stringify(payload),
-    }),
 
-  students: () => request<Student[]>("/students"),
+  students: () => requestAll<Student>("/students"),
   student: (id: string) => request<Student>(`/students/${id}`),
   createStudent: (payload: StudentCreate) =>
     request<Student>("/students", {
@@ -113,7 +150,7 @@ export const api = {
   deleteStudent: (id: string) =>
     request(`/students/${id}`, { method: "DELETE" }),
 
-  courses: () => request<Course[]>("/courses"),
+  courses: () => requestAll<Course>("/courses"),
   course: (id: string) => request<Course>(`/courses/${id}`),
   createCourse: (payload: CourseCreate) =>
     request<Course>("/courses", {
@@ -128,7 +165,7 @@ export const api = {
   deleteCourse: (id: string) =>
     request(`/courses/${id}`, { method: "DELETE" }),
 
-  enrollments: () => request<Enrollment[]>("/enrollments"),
+  enrollments: () => requestAll<Enrollment>("/enrollments"),
   enrollment: (id: string) => request<Enrollment>(`/enrollments/${id}`),
   createEnrollment: (payload: EnrollmentCreate) =>
     request<Enrollment>("/enrollments", {

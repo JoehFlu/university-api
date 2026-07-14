@@ -129,6 +129,7 @@ button:disabled {
   border: 0;
   border-radius: 11px;
   background: transparent;
+  text-decoration: none;
   transition: 160ms ease;
 }
 
@@ -1119,7 +1120,7 @@ tbody tr:hover {
 }
 
 .profile {
-  margin-left: 4px;
+  margin-left: auto;
   padding-left: 12px;
   border-left: 0;
 }
@@ -1326,6 +1327,10 @@ tbody tr:hover {
   font-weight: 700;
 }
 
+.castlemock-card .service-indicator {
+  font-size: 12px;
+}
+
 .service-indicator::before {
   width: 7px;
   height: 7px;
@@ -1348,12 +1353,26 @@ tbody tr:hover {
   gap: 14px;
 }
 
+.castlemock-page {
+  width: 100%;
+  max-width: 800px;
+}
+
+.castlemock-card .panel__header {
+  min-height: 76px;
+  padding: 21px 28px;
+}
+
+.castlemock-card .panel__header h2 {
+  font-size: 18px;
+}
+
 .castlemock-card__link {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   color: var(--primary);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 700;
   text-decoration: none;
 }
@@ -1364,15 +1383,20 @@ tbody tr:hover {
 
 .castlemock-card__body {
   display: grid;
-  gap: 15px;
-  padding: 18px 22px 22px;
+  gap: 22px;
+  padding: 25px 28px 29px;
 }
 
 .mock-weather {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 15px;
   color: var(--primary);
+}
+
+.mock-weather > svg {
+  width: 28px;
+  height: 28px;
 }
 
 .mock-weather > div {
@@ -1388,42 +1412,84 @@ tbody tr:hover {
 .mock-weather strong {
   overflow: hidden;
   color: #0f172a;
-  font-size: 11px;
+  font-size: 15px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .mock-weather span {
-  margin-top: 3px;
+  margin-top: 4px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 
 .mock-weather .icon-button {
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   flex: 0 0 auto;
   border-radius: 4px;
 }
 
-.castlemock-actions {
+.castlemock-tools {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px;
+  gap: 20px;
 }
 
-.castlemock-actions .button {
-  min-height: 38px;
-  padding: 0 10px;
+.castlemock-tool {
+  display: grid;
+  gap: 10px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.castlemock-tool label {
+  color: #334155;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.castlemock-tool small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.castlemock-tool__controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+}
+
+.castlemock-tool__controls select {
+  min-width: 0;
+  min-height: 48px;
+  padding: 0 38px 0 14px;
+  border: 1px solid var(--line);
   border-radius: 4px;
-  font-size: 9px;
+  outline: none;
+  background: white;
+  color: #334155;
+  font: inherit;
+  font-size: 13px;
+}
+
+.castlemock-tool__controls select:focus {
+  border-color: #a5b4fc;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.08);
+}
+
+.castlemock-tool__controls .button {
+  min-height: 48px;
+  padding: 0 17px;
+  border-radius: 4px;
+  font-size: 12px;
 }
 
 .castlemock-card__message {
   margin: -3px 0 0;
   color: #047857;
-  font-size: 9px;
-  line-height: 1.4;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .castlemock-card__message--error {
@@ -1441,10 +1507,6 @@ tbody tr:hover {
   color: var(--primary);
   border-color: #a5b4fc;
   background: white;
-}
-
-.app-shell--overview .profile {
-  margin-left: auto;
 }
 
 .button,
@@ -1599,5 +1661,26 @@ tbody tr:hover {
 
   .table-meta small {
     display: none;
+  }
+
+  .castlemock-tool__controls {
+    grid-template-columns: 1fr;
+  }
+
+  .castlemock-card .panel__header {
+    min-height: 0;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px;
+  }
+
+  .castlemock-card__header-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .castlemock-card__body {
+    padding: 21px 20px 24px;
   }
 }

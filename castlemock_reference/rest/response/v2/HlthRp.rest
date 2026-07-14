@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <restMockResponse>
-    <id>DJhivB</id>
-    <name>Returns success message after profile update</name>
+    <id>HlthRp</id>
+    <name>CastleMock is ready</name>
     <body>{
-  "status": "updated"
+  "status": "ok"
 }
 </body>
-    <methodId>LsaN0d</methodId>
+    <methodId>HlthMt</methodId>
     <status>ENABLED</status>
     <httpStatusCode>200</httpStatusCode>
     <usingExpressions>false</usingExpressions>

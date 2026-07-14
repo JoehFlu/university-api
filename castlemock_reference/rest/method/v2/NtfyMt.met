@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<restMethod>
+    <id>NtfyMt</id>
+    <name>Notify about enrollment</name>
+    <resourceId>NtfyRs</resourceId>
+    <httpMethod>POST</httpMethod>
+    <status>MOCKED</status>
+    <responseStrategy>RANDOM</responseStrategy>
+    <currentResponseSequenceIndex>0</currentResponseSequenceIndex>
+</restMethod>

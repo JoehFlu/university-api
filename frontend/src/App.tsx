@@ -1,4 +1,5 @@
 import {
+  BadgeCheck,
   BookOpen,
   CircleUserRound,
   CloudSun,
@@ -7,28 +8,65 @@ import {
   GraduationCap,
   LayoutDashboard,
   LoaderCircle,
-  LogIn,
   Menu,
   Pencil,
   Plus,
   RefreshCw,
   Search,
+  Send,
   Trash2,
-  UserCog,
   UserPlus,
   Users,
   X,
 } from "lucide-react";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import { api, Course, Enrollment, Health, Student, Weather } from "./api";
 
-type Section = "overview" | "students" | "courses" | "enrollments";
+type Section = "overview" | "students" | "courses" | "enrollments" | "castlemock";
 type Modal =
   | { type: "student"; item?: Student }
   | { type: "course"; item?: Course }
   | { type: "enrollment" }
   | null;
+
+const sectionPaths: Record<Section, string> = {
+  overview: "/",
+  students: "/students",
+  courses: "/courses",
+  enrollments: "/enrollments",
+  castlemock: "/castlemock",
+};
+
+const wait = (milliseconds: number) =>
+  new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+
+async function waitForApi(attempts = 5): Promise<Health> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await api.health();
+    } catch (requestError) {
+      lastError = requestError;
+      if (attempt < attempts) {
+        await wait(attempt * 500);
+      }
+    }
+  }
+  throw lastError;
+}
+
+const serviceUrl = (port: number, path: string) =>
+  `${window.location.protocol}//${window.location.hostname}:${port}${path}`;
+
+const API_DOCS_URL = serviceUrl(8000, "/docs");
+const CASTLEMOCK_URL = serviceUrl(8080, "/castlemock");
+
+function getSectionFromPath(pathname: string): Section | null {
+  const normalizedPath = pathname !== "/" ? pathname.replace(/\/+$/, "") : pathname;
+  const match = Object.entries(sectionPaths).find(([, path]) => path === normalizedPath);
+  return (match?.[0] as Section | undefined) ?? null;
+}
 
 const navItems: Array<{
   id: Section;
@@ -39,10 +77,13 @@ const navItems: Array<{
   { id: "students", label: "Студенты", icon: Users },
   { id: "courses", label: "Курсы", icon: BookOpen },
   { id: "enrollments", label: "Зачисления", icon: UserPlus },
+  { id: "castlemock", label: "CastleMock", icon: Database },
 ];
 
 function App() {
-  const [section, setSection] = useState<Section>("overview");
+  const [section, setSection] = useState<Section>(
+    () => getSectionFromPath(window.location.pathname) ?? "overview",
+  );
   const [students, setStudents] = useState<Student[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
@@ -51,6 +92,7 @@ function App() {
   const [castleMockMessage, setCastleMockMessage] = useState("");
   const [castleMockError, setCastleMockError] = useState("");
   const [castleMockLoading, setCastleMockLoading] = useState(false);
+  const [castleMockConnected, setCastleMockConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [healthChecking, setHealthChecking] = useState(false);
   const [mutating, setMutating] = useState(false);
@@ -59,23 +101,67 @@ function App() {
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState<Modal>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const loadRequestId = useRef(0);
+  const noticeTimer = useRef<number | null>(null);
+  const mutationInFlight = useRef(false);
+  const castleMockActionInFlight = useRef(false);
+
+  const navigateTo = useCallback((nextSection: Section) => {
+    const nextPath = sectionPaths[nextSection];
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState({}, "", nextPath);
+    }
+    setSection(nextSection);
+    setSearch("");
+    setSidebarOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (!getSectionFromPath(window.location.pathname)) {
+      window.history.replaceState({}, "", sectionPaths.overview);
+    }
+
+    const handlePopState = () => {
+      const nextSection = getSectionFromPath(window.location.pathname);
+      if (nextSection) {
+        setSection(nextSection);
+        setSearch("");
+        setSidebarOpen(false);
+      } else {
+        window.history.replaceState({}, "", sectionPaths.overview);
+        setSection("overview");
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   const loadData = useCallback(async () => {
+    const requestId = ++loadRequestId.current;
     setLoading(true);
     setError("");
     try {
-      const [nextStudents, nextCourses, nextEnrollments, nextHealth] =
-        await Promise.all([
-          api.students(),
-          api.courses(),
-          api.enrollments(),
-          api.health(),
-        ]);
-      setStudents(nextStudents);
-      setCourses(nextCourses);
-      setEnrollments(nextEnrollments);
+      const nextHealth = await waitForApi();
+      if (requestId !== loadRequestId.current) return;
       setHealth(nextHealth);
+      setCastleMockConnected(nextHealth.castlemock === "ok");
+      const results = await Promise.allSettled([
+        api.students(),
+        api.courses(),
+        api.enrollments(),
+      ]);
+      if (requestId !== loadRequestId.current) return;
+      const [studentsResult, coursesResult, enrollmentsResult] = results;
+      if (studentsResult.status === "fulfilled") setStudents(studentsResult.value);
+      if (coursesResult.status === "fulfilled") setCourses(coursesResult.value);
+      if (enrollmentsResult.status === "fulfilled") setEnrollments(enrollmentsResult.value);
+      const failed = results.filter((result) => result.status === "rejected");
+      if (failed.length) {
+        setError(`Не удалось загрузить часть данных (${failed.length} из 3)`);
+      }
     } catch (requestError) {
+      if (requestId !== loadRequestId.current) return;
       setHealth(null);
       setError(
         requestError instanceof Error
@@ -83,7 +169,7 @@ function App() {
           : "Не удалось загрузить данные",
       );
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestId.current) setLoading(false);
     }
   }, []);
 
@@ -92,37 +178,60 @@ function App() {
   }, [loadData]);
 
   const loadMockWeather = useCallback(async () => {
+    if (castleMockActionInFlight.current) return;
+    castleMockActionInFlight.current = true;
     setCastleMockLoading(true);
     setCastleMockError("");
     try {
       setWeather(await api.mockWeather());
+      setCastleMockConnected(true);
       setCastleMockMessage("Прогноз получен");
     } catch (requestError) {
       setWeather(null);
+      setCastleMockConnected(false);
       setCastleMockError(
         requestError instanceof Error
           ? requestError.message
           : "CastleMock недоступен",
       );
     } finally {
+      castleMockActionInFlight.current = false;
       setCastleMockLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void loadMockWeather();
-  }, [loadMockWeather]);
+    if (section === "castlemock") {
+      void loadMockWeather();
+    }
+  }, [section, loadMockWeather]);
 
   const showNotice = (message: string) => {
+    if (noticeTimer.current !== null) {
+      window.clearTimeout(noticeTimer.current);
+    }
     setNotice(message);
-    window.setTimeout(() => setNotice(""), 2600);
+    noticeTimer.current = window.setTimeout(() => {
+      setNotice("");
+      noticeTimer.current = null;
+    }, 2600);
   };
+
+  useEffect(
+    () => () => {
+      if (noticeTimer.current !== null) window.clearTimeout(noticeTimer.current);
+    },
+    [],
+  );
 
   const runMutation = async <T,>(
     action: () => Promise<T>,
     apply: (result: T) => void,
     message: string,
   ) => {
+    if (mutationInFlight.current) return;
+    mutationInFlight.current = true;
+    loadRequestId.current += 1;
     setMutating(true);
     setError("");
     try {
@@ -136,12 +245,15 @@ function App() {
           : "Не удалось выполнить действие",
       );
     } finally {
+      mutationInFlight.current = false;
       setMutating(false);
     }
   };
 
   const handleSeed = async () => {
+    if (mutationInFlight.current) return;
     if (!window.confirm("Перезаполнить базу тестовыми данными?")) return;
+    mutationInFlight.current = true;
     setMutating(true);
     setError("");
     try {
@@ -151,6 +263,7 @@ function App() {
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Не удалось заполнить базу");
     } finally {
+      mutationInFlight.current = false;
       setMutating(false);
     }
   };
@@ -159,10 +272,13 @@ function App() {
     setHealthChecking(true);
     setError("");
     try {
-      setHealth(await api.health());
+      const nextHealth = await api.health();
+      setHealth(nextHealth);
+      setCastleMockConnected(nextHealth.castlemock === "ok");
       showNotice("Состояние сервисов обновлено");
     } catch (requestError) {
       setHealth(null);
+      setCastleMockConnected(false);
       setError(
         requestError instanceof Error
           ? requestError.message
@@ -173,22 +289,27 @@ function App() {
     }
   };
 
-  const runCastleMockAction = async (
-    action: () => Promise<unknown>,
-    message: string,
+  const runCastleMockAction = async <T,>(
+    action: () => Promise<T>,
+    getMessage: (result: T) => string,
   ) => {
+    if (castleMockActionInFlight.current) return;
+    castleMockActionInFlight.current = true;
     setCastleMockLoading(true);
     setCastleMockError("");
     try {
-      await action();
-      setCastleMockMessage(message);
+      const result = await action();
+      setCastleMockConnected(true);
+      setCastleMockMessage(getMessage(result));
     } catch (requestError) {
+      setCastleMockConnected(false);
       setCastleMockError(
         requestError instanceof Error
           ? requestError.message
           : "CastleMock недоступен",
       );
     } finally {
+      castleMockActionInFlight.current = false;
       setCastleMockLoading(false);
     }
   };
@@ -206,8 +327,18 @@ function App() {
     await runMutation(
       actions[entity],
       () => {
-        if (entity === "student") setStudents((items) => items.filter((item) => item.id !== id));
-        if (entity === "course") setCourses((items) => items.filter((item) => item.id !== id));
+        if (entity === "student") {
+          setStudents((items) => items.filter((item) => item.id !== id));
+          setEnrollments((items) =>
+            items.filter((item) => item.student_id !== id),
+          );
+        }
+        if (entity === "course") {
+          setCourses((items) => items.filter((item) => item.id !== id));
+          setEnrollments((items) =>
+            items.filter((item) => item.course_id !== id),
+          );
+        }
         if (entity === "enrollment") setEnrollments((items) => items.filter((item) => item.id !== id));
       },
       "Запись удалена",
@@ -231,16 +362,16 @@ function App() {
       title: "Зачисления",
       subtitle: "Назначайте студентам доступные курсы.",
     },
+    castlemock: {
+      title: "CastleMock",
+      subtitle: "Проверяйте тестовые ответы внешнего сервиса.",
+    },
   };
 
   const currentTitle = titles[section];
 
   return (
-    <div
-      className={`app-shell ${
-        section === "overview" ? "app-shell--overview" : ""
-      }`}
-    >
+    <div className="app-shell">
       <aside className={`sidebar ${sidebarOpen ? "sidebar--open" : ""}`}>
         <div className="brand">
           <div className="brand__mark">
@@ -263,20 +394,29 @@ function App() {
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
-              <button
+              <a
                 key={item.id}
+                href={sectionPaths[item.id]}
                 className={`navigation__item ${
                   section === item.id ? "navigation__item--active" : ""
                 }`}
-                onClick={() => {
-                  setSection(item.id);
-                  setSearch("");
-                  setSidebarOpen(false);
+                onClick={(event) => {
+                  if (
+                    event.button !== 0 ||
+                    event.metaKey ||
+                    event.ctrlKey ||
+                    event.shiftKey ||
+                    event.altKey
+                  ) {
+                    return;
+                  }
+                  event.preventDefault();
+                  navigateTo(item.id);
                 }}
               >
                 <Icon size={19} />
                 <span>{item.label}</span>
-              </button>
+              </a>
             );
           })}
         </nav>
@@ -299,7 +439,7 @@ function App() {
           >
             <Menu size={21} />
           </button>
-          {section !== "overview" && (
+          {section !== "overview" && section !== "castlemock" && (
             <>
               <div className="topbar__search">
                 <Search size={18} />
@@ -330,7 +470,7 @@ function App() {
         <div className="content">
           <div className="page-heading">
             <div>
-              {section !== "overview" && (
+              {section !== "overview" && section !== "castlemock" && (
                 <p className="eyebrow">University workspace</p>
               )}
               <h1>{currentTitle.title}</h1>
@@ -347,7 +487,7 @@ function App() {
                   Загрузить тестовые данные
                 </button>
               )}
-              {section !== "overview" && (
+              {section !== "overview" && section !== "castlemock" && (
                 <button
                   className="button button--primary"
                   onClick={() =>
@@ -390,27 +530,11 @@ function App() {
                   courses={courses}
                   enrollments={enrollments}
                   health={health}
-                  onNavigate={setSection}
+                  onNavigate={navigateTo}
                   onOpenModal={setModal}
                   onCheckHealth={() => void checkHealth()}
                   healthChecking={healthChecking}
-                  weather={weather}
-                  castleMockMessage={castleMockMessage}
-                  castleMockError={castleMockError}
-                  castleMockLoading={castleMockLoading}
-                  onRefreshWeather={() => void loadMockWeather()}
-                  onMockLogin={() =>
-                    void runCastleMockAction(
-                      () => api.mockLogin({ username: "demo_user", password: "secret" }),
-                      "Авторизация через CastleMock успешна",
-                    )
-                  }
-                  onMockProfileUpdate={() =>
-                    void runCastleMockAction(
-                      () => api.mockProfileUpdate({ name: "Demo User" }),
-                      "Профиль обновлён через CastleMock",
-                    )
-                  }
+                  castleMockConnected={castleMockConnected}
                 />
               )}
               {section === "students" && (
@@ -438,6 +562,41 @@ function App() {
                   query={search}
                   onDelete={(id) => void handleDelete("enrollment", id)}
                 />
+              )}
+              {section === "castlemock" && (
+                <section className="castlemock-page">
+                  <CastleMockWidget
+                    students={students}
+                    courses={courses}
+                    enrollments={enrollments}
+                    weather={weather}
+                    message={castleMockMessage}
+                    error={castleMockError}
+                    loading={castleMockLoading}
+                    connected={castleMockConnected}
+                    onRefreshWeather={() => void loadMockWeather()}
+                    onVerifyStudent={(student) =>
+                      void runCastleMockAction(
+                        () => api.verifyStudent(student),
+                        (result) =>
+                          `Студент проверен · ${result.reference_id} · ${result.provider}`,
+                      )
+                    }
+                    onSendEnrollmentNotification={(enrollment, student, course) =>
+                      void runCastleMockAction(
+                        () =>
+                          api.sendEnrollmentNotification({
+                            enrollment_id: enrollment.id,
+                            student_name: student.name,
+                            email: student.email,
+                            course_title: course.title,
+                          }),
+                        (result) =>
+                          `Уведомление отправлено · ${result.message_id} · ${result.channel}`,
+                      )
+                    }
+                  />
+                </section>
               )}
             </>
           )}
@@ -516,13 +675,7 @@ function Overview({
   onOpenModal,
   onCheckHealth,
   healthChecking,
-  weather,
-  castleMockMessage,
-  castleMockError,
-  castleMockLoading,
-  onRefreshWeather,
-  onMockLogin,
-  onMockProfileUpdate,
+  castleMockConnected,
 }: {
   students: Student[];
   courses: Course[];
@@ -532,13 +685,7 @@ function Overview({
   onOpenModal: (modal: Modal) => void;
   onCheckHealth: () => void;
   healthChecking: boolean;
-  weather: Weather | null;
-  castleMockMessage: string;
-  castleMockError: string;
-  castleMockLoading: boolean;
-  onRefreshWeather: () => void;
-  onMockLogin: () => void;
-  onMockProfileUpdate: () => void;
+  castleMockConnected: boolean;
 }) {
   const stats = [
     {
@@ -563,7 +710,7 @@ function Overview({
 
   const studentById = new Map(students.map((item) => [item.id, item]));
   const courseById = new Map(courses.map((item) => [item.id, item]));
-  const recent = enrollments.slice(-10).reverse();
+  const recent = enrollments.slice(0, 10);
 
   return (
     <>
@@ -668,7 +815,7 @@ function Overview({
               />
               <a
                 className="quick-action quick-action--link"
-                href="http://localhost:8000/docs"
+                href={API_DOCS_URL}
                 target="_blank"
                 rel="noreferrer"
               >
@@ -691,6 +838,11 @@ function Overview({
               />
               <SystemRow label="Версия API" value={health?.version ?? "—"} ok={!!health} />
               <SystemRow label="Сервис" value={health?.service ?? "—"} ok={!!health} />
+              <SystemRow
+                label="CastleMock"
+                value={castleMockConnected ? "подключён" : "недоступен"}
+                ok={castleMockConnected}
+              />
             </div>
             <div className="system-card__action">
               <button
@@ -704,83 +856,170 @@ function Overview({
             </div>
           </div>
 
-          <div className="panel castlemock-card">
-            <div className="panel__header">
-              <h2>CastleMock</h2>
-              <div className="castlemock-card__header-actions">
-                <span
-                  className={`service-indicator ${
-                    castleMockError ? "service-indicator--off" : ""
-                  }`}
-                >
-                  {castleMockError ? "Недоступен" : "Подключён"}
-                </span>
-                <a
-                  className="castlemock-card__link"
-                  href="http://localhost:8080/castlemock"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Открыть сервис
-                  <ExternalLink size={13} />
-                </a>
-              </div>
-            </div>
-            <div className="castlemock-card__body">
-              <div className="mock-weather">
-                <CloudSun size={22} />
-                <div>
-                  <strong>
-                    {weather
-                      ? `${weather.city}, ${weather.temperature} °C`
-                      : "Прогноз не загружен"}
-                  </strong>
-                  <span>{weather?.condition ?? "Тестовый endpoint погоды"}</span>
-                </div>
-                <button
-                  className="icon-button"
-                  onClick={onRefreshWeather}
-                  disabled={castleMockLoading}
-                  aria-label="Обновить тестовый прогноз"
-                >
-                  <RefreshCw
-                    size={15}
-                    className={castleMockLoading ? "spin" : ""}
-                  />
-                </button>
-              </div>
-              <div className="castlemock-actions">
-                <button
-                  className="button button--secondary"
-                  onClick={onMockLogin}
-                  disabled={castleMockLoading}
-                >
-                  <LogIn size={15} />
-                  Проверить вход
-                </button>
-                <button
-                  className="button button--secondary"
-                  onClick={onMockProfileUpdate}
-                  disabled={castleMockLoading}
-                >
-                  <UserCog size={15} />
-                  Обновить профиль
-                </button>
-              </div>
-              {(castleMockMessage || castleMockError) && (
-                <p
-                  className={`castlemock-card__message ${
-                    castleMockError ? "castlemock-card__message--error" : ""
-                  }`}
-                >
-                  {castleMockError || castleMockMessage}
-                </p>
-              )}
-            </div>
-          </div>
         </div>
       </section>
     </>
+  );
+}
+
+function CastleMockWidget({
+  students,
+  courses,
+  enrollments,
+  weather,
+  message,
+  error,
+  loading,
+  connected,
+  onRefreshWeather,
+  onVerifyStudent,
+  onSendEnrollmentNotification,
+}: {
+  students: Student[];
+  courses: Course[];
+  enrollments: Enrollment[];
+  weather: Weather | null;
+  message: string;
+  error: string;
+  loading: boolean;
+  connected: boolean;
+  onRefreshWeather: () => void;
+  onVerifyStudent: (student: Student) => void;
+  onSendEnrollmentNotification: (
+    enrollment: Enrollment,
+    student: Student,
+    course: Course,
+  ) => void;
+}) {
+  const [selectedStudentId, setSelectedStudentId] = useState(students[0]?.id ?? "");
+  const [selectedEnrollmentId, setSelectedEnrollmentId] = useState(
+    enrollments[0]?.id ?? "",
+  );
+  const studentById = new Map(students.map((student) => [student.id, student]));
+  const courseById = new Map(courses.map((course) => [course.id, course]));
+  const availableEnrollments = enrollments.flatMap((enrollment) => {
+    const student = studentById.get(enrollment.student_id);
+    const course = courseById.get(enrollment.course_id);
+    return student && course ? [{ enrollment, student, course }] : [];
+  });
+  const selectedStudent =
+    students.find((student) => student.id === selectedStudentId) ?? students[0];
+  const selectedEnrollment =
+    availableEnrollments.find(
+      ({ enrollment }) => enrollment.id === selectedEnrollmentId,
+    ) ?? availableEnrollments[0];
+
+  return (
+    <div className="panel castlemock-card">
+      <div className="panel__header">
+        <h2>CastleMock</h2>
+        <div className="castlemock-card__header-actions">
+          <span className={`service-indicator ${connected ? "" : "service-indicator--off"}`}>
+            {connected ? "Подключён" : "Недоступен"}
+          </span>
+          <a
+            className="castlemock-card__link"
+            href={CASTLEMOCK_URL}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Открыть сервис
+            <ExternalLink size={13} />
+          </a>
+        </div>
+      </div>
+      <div className="castlemock-card__body">
+        <div className="mock-weather">
+          <CloudSun size={22} />
+          <div>
+            <strong>
+              {weather
+                ? `${weather.city}, ${weather.temperature} °C`
+                : "Прогноз не загружен"}
+            </strong>
+            <span>{weather?.condition ?? "Тестовый endpoint погоды"}</span>
+          </div>
+          <button
+            className="icon-button"
+            onClick={onRefreshWeather}
+            disabled={loading}
+            aria-label="Обновить тестовый прогноз"
+          >
+            <RefreshCw size={15} className={loading ? "spin" : ""} />
+          </button>
+        </div>
+        <div className="castlemock-tools">
+          <div className="castlemock-tool">
+            <label htmlFor="castlemock-student">Проверка студента</label>
+            <div className="castlemock-tool__controls">
+              <select
+                id="castlemock-student"
+                value={selectedStudent?.id ?? ""}
+                onChange={(event) => setSelectedStudentId(event.target.value)}
+                disabled={!students.length || loading}
+              >
+                {!students.length && <option value="">Нет студентов</option>}
+                {students.map((student) => (
+                  <option key={student.id} value={student.id}>
+                    {student.name} · {student.email}
+                  </option>
+                ))}
+              </select>
+              <button
+                className="button button--secondary"
+                onClick={() => selectedStudent && onVerifyStudent(selectedStudent)}
+                disabled={!selectedStudent || loading}
+              >
+                <BadgeCheck size={15} />
+                Проверить
+              </button>
+            </div>
+            <small>Передаёт выбранного студента внешнему сервису проверки.</small>
+          </div>
+          <div className="castlemock-tool">
+            <label htmlFor="castlemock-enrollment">Уведомление о зачислении</label>
+            <div className="castlemock-tool__controls">
+              <select
+                id="castlemock-enrollment"
+                value={selectedEnrollment?.enrollment.id ?? ""}
+                onChange={(event) => setSelectedEnrollmentId(event.target.value)}
+                disabled={!availableEnrollments.length || loading}
+              >
+                {!availableEnrollments.length && (
+                  <option value="">Нет связанных зачислений</option>
+                )}
+                {availableEnrollments.map(({ enrollment, student, course }) => (
+                  <option key={enrollment.id} value={enrollment.id}>
+                    {student.name} · {course.title}
+                  </option>
+                ))}
+              </select>
+              <button
+                className="button button--secondary"
+                onClick={() =>
+                  selectedEnrollment &&
+                  onSendEnrollmentNotification(
+                    selectedEnrollment.enrollment,
+                    selectedEnrollment.student,
+                    selectedEnrollment.course,
+                  )
+                }
+                disabled={!selectedEnrollment || loading}
+              >
+                <Send size={15} />
+                Отправить
+              </button>
+            </div>
+            <small>Имитирует email после успешного зачисления на курс.</small>
+          </div>
+        </div>
+        {(message || error) && (
+          <p className={`castlemock-card__message ${error ? "castlemock-card__message--error" : ""}`}>
+            {error || message}
+          </p>
+        )}
+      </div>
+    </div>
   );
 }
 

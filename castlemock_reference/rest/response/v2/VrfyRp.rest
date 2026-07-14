@@ -1,16 +1,14 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <restMockResponse>
-    <id>QoFDFF</id>
-    <name>Returns success message: auth</name>
+    <id>VrfyRp</id>
+    <name>Student verified</name>
     <body>{
-  "status": "success",
-  "token": "abc123xyz",
-  "user": {
-    "username": "demo_user"
-  }
+  "status": "verified",
+  "reference_id": "VER-1024",
+  "provider": "StudentCheck"
 }
 </body>
-    <methodId>GUuwgN</methodId>
+    <methodId>VrfyMt</methodId>
     <status>ENABLED</status>
     <httpStatusCode>200</httpStatusCode>
     <usingExpressions>false</usingExpressions>

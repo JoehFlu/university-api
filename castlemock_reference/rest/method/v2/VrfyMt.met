@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <restMethod>
-    <id>LsaN0d</id>
-    <name>update profile</name>
-    <resourceId>B2vzlP</resourceId>
-    <httpMethod>PUT</httpMethod>
+    <id>VrfyMt</id>
+    <name>Verify student</name>
+    <resourceId>VrfyRs</resourceId>
+    <httpMethod>POST</httpMethod>
     <status>MOCKED</status>
     <responseStrategy>RANDOM</responseStrategy>
     <currentResponseSequenceIndex>0</currentResponseSequenceIndex>

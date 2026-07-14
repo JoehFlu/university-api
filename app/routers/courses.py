@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 
-from app.db import courses, enrollments
+from app.config import LIST_DEFAULT_LIMIT, LIST_MAX_LIMIT
+from app.db import courses, enrollments, run_transaction
 from app.models import (
     CourseCreate,
     CourseResponse,
@@ -25,8 +26,12 @@ def create_course(course: CourseCreate):
 
 
 @router.get("/courses", response_model=list[CourseResponse])
-def list_courses():
-    return [to_out(doc, CourseResponse) for doc in courses.find()]
+def list_courses(
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=LIST_DEFAULT_LIMIT, ge=1, le=LIST_MAX_LIMIT),
+):
+    cursor = courses.find().sort("_id", 1).skip(offset).limit(limit)
+    return [to_out(doc, CourseResponse) for doc in cursor]
 
 
 @router.get("/courses/{course_id}", response_model=CourseResponse, responses={400: ERROR_400, 404: ERROR_404})
@@ -52,8 +57,12 @@ def update_course(course_id: ObjectIdStr, course: CourseUpdate):
 @router.delete("/courses/{course_id}", response_model=DeleteResponse, responses={400: ERROR_400, 404: ERROR_404})
 def delete_course(course_id: ObjectIdStr):
     object_id = parse_object_id(course_id, "course")
-    result = courses.delete_one({"_id": object_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Course not found")
-    enrollments.delete_many({"course_id": {"$in": [object_id, str(object_id)]}})
+
+    def delete_with_enrollments(session):
+        result = courses.delete_one({"_id": object_id}, session=session)
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Course not found")
+        enrollments.delete_many({"course_id": object_id}, session=session)
+
+    run_transaction(delete_with_enrollments)
     return {"status": "deleted", "entity": "course", "id": course_id}

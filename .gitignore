@@ -6,5 +6,7 @@ __pycache__/
 .DS_Store
 frontend/node_modules/
 frontend/dist/
-castlemock_data_persistent/logs/
-castlemock_data_persistent/rest/event/**/*.event
+castlemock_reference/logs/
+castlemock_reference/rest/event/
+backups/*.tar.gz
+!backups/.gitkeep

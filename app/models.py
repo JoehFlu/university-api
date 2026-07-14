@@ -7,6 +7,7 @@ from pydantic import (
     EmailStr,
     Field,
     WithJsonSchema,
+    field_validator,
     model_validator,
 )
 
@@ -41,6 +42,11 @@ class StudentFields(BaseModel):
     age: int = Field(ge=16, le=120, examples=[21])
     email: EmailStr = Field(examples=["ivan.petrov@example.com"])
 
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: EmailStr):
+        return str(value).lower()
+
 
 class StudentCreate(StudentFields):
     model_config = ConfigDict(
@@ -62,10 +68,17 @@ class StudentUpdate(BaseModel):
     age: int | None = Field(default=None, ge=16, le=120)
     email: EmailStr | None = None
 
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: EmailStr | None):
+        return str(value).lower() if value is not None else None
+
     @model_validator(mode="after")
     def requires_a_field(self):
         if not self.model_fields_set:
             raise ValueError("At least one field must be provided")
+        if any(getattr(self, field) is None for field in self.model_fields_set):
+            raise ValueError("Updated fields cannot be null")
         return self
 
 
@@ -117,6 +130,8 @@ class CourseUpdate(BaseModel):
     def requires_a_field(self):
         if not self.model_fields_set:
             raise ValueError("At least one field must be provided")
+        if any(getattr(self, field) is None for field in self.model_fields_set):
+            raise ValueError("Updated fields cannot be null")
         return self
 
 
@@ -156,6 +171,8 @@ class EnrollmentUpdate(BaseModel):
     def requires_a_field(self):
         if not self.model_fields_set:
             raise ValueError("At least one field must be provided")
+        if any(getattr(self, field) is None for field in self.model_fields_set):
+            raise ValueError("Updated fields cannot be null")
         return self
 
 
@@ -186,10 +203,11 @@ class SeedResponse(BaseModel):
 
 
 class HealthResponse(BaseModel):
-    status: Literal["ok"]
+    status: Literal["ok", "degraded"]
     service: str
     version: str
     mongodb: Literal["ok"]
+    castlemock: Literal["ok", "unavailable"]
 
 
 class WeatherResponse(BaseModel):
@@ -198,31 +216,26 @@ class WeatherResponse(BaseModel):
     condition: str
 
 
-class LoginRequest(BaseModel):
-    username: str = Field(min_length=1, max_length=100, examples=["demo_user"])
-    password: str = Field(min_length=1, max_length=100, examples=["secret"])
+class StudentVerificationRequest(BaseModel):
+    student_id: ObjectIdStr
+    name: str = Field(min_length=1, max_length=100)
+    email: EmailStr
 
 
-class LoginUser(BaseModel):
-    username: str
+class StudentVerificationResponse(BaseModel):
+    status: Literal["verified"]
+    reference_id: str
+    provider: str
 
 
-class LoginResponse(BaseModel):
-    status: Literal["success"]
-    token: str
-    user: LoginUser
+class EnrollmentNotificationRequest(BaseModel):
+    enrollment_id: ObjectIdStr
+    student_name: str = Field(min_length=1, max_length=100)
+    email: EmailStr
+    course_title: str = Field(min_length=1, max_length=200)
 
 
-class ProfileUpdateRequest(BaseModel):
-    name: str | None = Field(default=None, min_length=1, max_length=100)
-    email: EmailStr | None = None
-
-    @model_validator(mode="after")
-    def requires_a_field(self):
-        if not self.model_fields_set:
-            raise ValueError("At least one field must be provided")
-        return self
-
-
-class UpdateResponse(BaseModel):
-    status: Literal["updated"]
+class EnrollmentNotificationResponse(BaseModel):
+    status: Literal["sent"]
+    message_id: str
+    channel: Literal["email"]

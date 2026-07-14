@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<restMockResponse>
+    <id>NtfyRp</id>
+    <name>Enrollment notification sent</name>
+    <body>{
+  "status": "sent",
+  "message_id": "MSG-2048",
+  "channel": "email"
+}
+</body>
+    <methodId>NtfyMt</methodId>
+    <status>ENABLED</status>
+    <httpStatusCode>200</httpStatusCode>
+    <usingExpressions>false</usingExpressions>
+    <httpHeaders/>
+    <contentEncodings/>
+    <parameterQueries/>
+    <xpathExpressions/>
+    <jsonPathExpressions/>
+    <headerQueries/>
+</restMockResponse>

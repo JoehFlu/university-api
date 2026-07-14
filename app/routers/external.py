@@ -1,11 +1,11 @@
 from fastapi import APIRouter
 
 from app.models import (
+    EnrollmentNotificationRequest,
+    EnrollmentNotificationResponse,
     ErrorResponse,
-    LoginRequest,
-    LoginResponse,
-    ProfileUpdateRequest,
-    UpdateResponse,
+    StudentVerificationRequest,
+    StudentVerificationResponse,
     WeatherResponse,
 )
 from app.utils import call_castlemock
@@ -25,20 +25,28 @@ def get_mock_weather():
 
 
 @router.post(
-    "/external/auth/login",
-    summary="Mock user login via CastleMock",
-    response_model=LoginResponse,
+    "/external/student-verification",
+    summary="Verify a student via CastleMock",
+    response_model=StudentVerificationResponse,
     responses={502: {"model": ErrorResponse, "description": "CastleMock is unavailable"}},
 )
-def mock_login(credentials: LoginRequest):
-    return call_castlemock("POST", "xpABue/auth", credentials.model_dump())
+def verify_student(student: StudentVerificationRequest):
+    return call_castlemock(
+        "POST",
+        "vEr1Fy/students/verify",
+        student.model_dump(mode="json"),
+    )
 
 
-@router.put(
-    "/external/user/update",
-    summary="Mock user update via CastleMock",
-    response_model=UpdateResponse,
+@router.post(
+    "/external/enrollment-notification",
+    summary="Send an enrollment notification via CastleMock",
+    response_model=EnrollmentNotificationResponse,
     responses={502: {"model": ErrorResponse, "description": "CastleMock is unavailable"}},
 )
-def update_user_profile(profile: ProfileUpdateRequest):
-    return call_castlemock("PUT", "kCpnzj/user/update", profile.model_dump(exclude_unset=True))
+def send_enrollment_notification(notification: EnrollmentNotificationRequest):
+    return call_castlemock(
+        "POST",
+        "nOt1Fy/notifications/enrollment",
+        notification.model_dump(mode="json"),
+    )

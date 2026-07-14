@@ -11,6 +11,9 @@ client = MongoClient(
     MONGO_URL,
     connect=False,
     serverSelectionTimeoutMS=MONGO_SERVER_SELECTION_TIMEOUT_MS,
+    appname="university-api",
+    retryReads=True,
+    retryWrites=True,
 )
 db = client[MONGO_DB_NAME]
 
@@ -26,3 +29,9 @@ def ensure_indexes():
         [("student_id", ASCENDING), ("course_id", ASCENDING)],
         unique=True,
     )
+
+
+def run_transaction(callback):
+    """Run a MongoDB transaction with PyMongo's transient-error retries."""
+    with client.start_session() as session:
+        return session.with_transaction(callback)

@@ -1,41 +1,34 @@
 # University API — FastAPI + MongoDB + CastleMock
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115%2B-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-latest-47A248?style=flat-square&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.139-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-8.0-47A248?style=flat-square&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)](https://docs.docker.com/compose/)
 
 ## О проекте
 
-**University API** — это REST API на FastAPI для управления студентами, курсами и записями на курсы.  
-Проект работает с MongoDB, запускается через Docker Compose и содержит набор мок-эндпоинтов через CastleMock.
+**University API** — готовый стенд для управления студентами, курсами и зачислениями.
 
-Основные возможности:
+В проект входят:
 
-- CRUD для студентов
-- CRUD для курсов
-- CRUD для записей на курсы
-- `seed` для быстрого заполнения базы тестовыми данными
-- `health` для проверки состояния API
-- примеры запросов к внешнему mock API
+- REST API на FastAPI;
+- панель управления на React;
+- MongoDB с постоянным хранением данных;
+- CastleMock с готовыми mock-сервисами;
+- Docker Compose и health checks;
+- интеграционные тесты.
 
 ---
 
 ## Стек технологий
 
-- FastAPI
-- React
-- TypeScript
-- Vite
+- FastAPI, Uvicorn и Pydantic
+- React, TypeScript и Vite
 - Nginx
-- Uvicorn
-- MongoDB
-- PyMongo
-- Pydantic
-- Faker
-- Requests
+- MongoDB и PyMongo
 - CastleMock
 - Docker Compose
+- Pytest
 
 ---
 
@@ -43,200 +36,213 @@
 
 ```text
 university-api/
-├── frontend/
-├── app/
-│   ├── routers/
-│   ├── app.py
-│   ├── config.py
-│   ├── db.py
-│   ├── models.py
-│   └── utils.py
-├── castlemock_data_persistent/
-├── Dockerfile
+├── app/                    # FastAPI-приложение
+├── frontend/               # React-панель
+├── tests/                  # Интеграционные тесты
+├── scripts/                # Backup и restore CastleMock
+├── castlemock_reference/   # Эталон University API Mocks
+├── backups/                # Локальные архивы CastleMock
 ├── docker-compose.yml
+├── Dockerfile
 ├── main.py
-├── requirements.txt
 └── README.md
 ```
-
-Коротко по структуре:
-
-- `main.py` — точка входа приложения.
-- `app/app.py` — создание FastAPI-приложения и подключение роутов.
-- `app/config.py` — конфигурация MongoDB, CastleMock и метаданных API.
-- `app/db.py` — подключение к базе и создание индексов.
-- `app/models.py` — Pydantic-модели запросов и ответов.
-- `app/utils.py` — вспомогательные функции для `ObjectId` и CastleMock.
-- `app/routers/` — эндпоинты по сущностям и служебные маршруты.
 
 ---
 
 ## Установка и запуск
 
 1. Перейди в папку проекта:
+
    ```bash
-   cd ~/Downloads/university-api
+   cd university-api
    ```
 
-2. Собери и запусти контейнеры:
+2. Собери и запусти сервисы:
+
    ```bash
-   docker compose up --build
+   docker compose up -d --build
    ```
 
-3. Открой Swagger UI:
-   ```text
-   http://localhost:8000/docs
+3. Проверь контейнеры:
+
+   ```bash
+   docker compose ps
    ```
 
 4. Открой панель управления:
+
    ```text
    http://localhost:3000
+   ```
+
+5. Открой Swagger UI:
+
+   ```text
+   http://localhost:8000/docs
    ```
 
 ---
 
 ## Остановка
 
+Остановить сервисы без удаления данных:
+
 ```bash
 docker compose down
 ```
 
-Если нужно удалить данные MongoDB:
+Удалить Docker volumes вместе с данными MongoDB:
 
 ```bash
 docker compose down -v
 ```
 
----
-
-## Требования
-
-- Docker
-- Docker Compose
-- Python 3.11+ только если планируешь запускать проект локально без Docker
-
-Проверка окружения:
-
-```bash
-docker --version
-docker compose version
-python3 --version
-```
+При следующем запуске CastleMock автоматически восстановится из эталона. MongoDB после `down -v` будет пустой.
 
 ---
 
 ## Доступ к сервисам
 
 | Сервис | URL | Описание |
-|--------|-----|-----------|
+|---|---|---|
 | Frontend | [http://localhost:3000](http://localhost:3000) | Панель управления |
 | FastAPI Docs | [http://localhost:8000/docs](http://localhost:8000/docs) | Swagger UI |
-| OpenAPI schema | [http://localhost:8000/openapi.json](http://localhost:8000/openapi.json) | Схема API |
-| MongoDB | `mongodb://localhost:27017` | База данных |
+| OpenAPI | [http://localhost:8000/openapi.json](http://localhost:8000/openapi.json) | Схема API |
 | CastleMock | [http://localhost:8080/castlemock](http://localhost:8080/castlemock) | Интерфейс моков |
+
+Порты доступны только на `127.0.0.1`. Для удалённого сервера рекомендуется использовать reverse proxy и TLS.
 
 ---
 
-## Основные эндпоинты
+## Основные endpoints
 
 ### Utility
 
-| Метод | Эндпоинт | Описание |
-|-------|----------|-----------|
-| `POST` | `/seed` | Заполнить базу тестовыми данными |
-| `GET` | `/health` | Проверить состояние API |
+| Метод | Endpoint | Описание |
+|---|---|---|
+| `GET` | `/health` | API, MongoDB и CastleMock |
+| `POST` | `/seed` | Загрузить тестовые данные |
 
 ### Students
 
-| Метод | Эндпоинт | Описание |
-|-------|----------|-----------|
-| `GET` | `/students` | Получить список студентов |
+| Метод | Endpoint | Описание |
+|---|---|---|
+| `GET` | `/students` | Получить студентов |
 | `POST` | `/students` | Создать студента |
-| `GET` | `/students/{student_id}` | Получить студента |
-| `PATCH` | `/students/{student_id}` | Частично обновить студента |
-| `DELETE` | `/students/{student_id}` | Удалить студента |
+| `GET` | `/students/{id}` | Получить студента |
+| `PATCH` | `/students/{id}` | Обновить студента |
+| `DELETE` | `/students/{id}` | Удалить студента |
 
 ### Courses
 
-| Метод | Эндпоинт | Описание |
-|-------|----------|-----------|
-| `GET` | `/courses` | Получить список курсов |
+| Метод | Endpoint | Описание |
+|---|---|---|
+| `GET` | `/courses` | Получить курсы |
 | `POST` | `/courses` | Создать курс |
-| `GET` | `/courses/{course_id}` | Получить курс |
-| `PATCH` | `/courses/{course_id}` | Частично обновить курс |
-| `DELETE` | `/courses/{course_id}` | Удалить курс |
+| `GET` | `/courses/{id}` | Получить курс |
+| `PATCH` | `/courses/{id}` | Обновить курс |
+| `DELETE` | `/courses/{id}` | Удалить курс |
 
 ### Enrollments
 
-| Метод | Эндпоинт | Описание |
-|-------|----------|-----------|
-| `GET` | `/enrollments` | Получить список записей |
-| `POST` | `/enrollments` | Записать студента на курс |
-| `GET` | `/enrollments/{enrollment_id}` | Получить запись |
-| `PATCH` | `/enrollments/{enrollment_id}` | Частично обновить запись |
-| `DELETE` | `/enrollments/{enrollment_id}` | Удалить запись |
+| Метод | Endpoint | Описание |
+|---|---|---|
+| `GET` | `/enrollments` | Получить зачисления |
+| `POST` | `/enrollments` | Зачислить студента |
+| `GET` | `/enrollments/{id}` | Получить зачисление |
+| `PATCH` | `/enrollments/{id}` | Обновить зачисление |
+| `DELETE` | `/enrollments/{id}` | Удалить зачисление |
 
 ### CastleMock
 
-| Метод | Эндпоинт | Описание |
-|-------|----------|-----------|
-| `GET` | `/external/weather` | Мок прогноза погоды |
-| `POST` | `/external/auth/login` | Мок логина |
-| `PUT` | `/external/user/update` | Мок обновления профиля |
+| Метод | Endpoint | Описание |
+|---|---|---|
+| `GET` | `/external/weather` | Получить mock-прогноз |
+| `POST` | `/external/student-verification` | Проверить студента |
+| `POST` | `/external/enrollment-notification` | Отправить mock-уведомление |
 
 ---
 
-## Коды ответов
+## CastleMock: эталон и резервные копии
 
-| Код | Когда возвращается |
-|-----|-------------------|
-| `200` | Успешный ответ |
-| `400` | Некорректный `id` |
-| `409` | Дубликат email или enrollment |
-| `404` | Сущность не найдена |
-| `422` | Ошибка валидации входных данных |
-| `503` | MongoDB недоступна |
-| `502` | CastleMock недоступен |
+Готовый проект `University API Mocks` хранится в `castlemock_reference/`. При первом запуске он автоматически загружается в рабочий Docker volume.
+
+Создать резервную копию текущих настроек:
+
+```bash
+./scripts/castlemock-backup.sh
+```
+
+Вернуть эталонное состояние:
+
+```bash
+./scripts/castlemock-restore.sh
+```
+
+Восстановить определённый архив:
+
+```bash
+./scripts/castlemock-restore.sh backups/<имя-архива>.tar.gz
+```
+
+Обычный перезапуск контейнера сохраняет рабочие изменения CastleMock. Возврат к эталону выполняется только командой restore.
 
 ---
 
 ## Примеры запросов
 
-Быстрая проверка API:
+Проверить состояние системы:
 
 ```bash
 curl http://localhost:8000/health
+```
+
+Загрузить тестовые данные:
+
+```bash
 curl -X POST http://localhost:8000/seed
 ```
 
-Работа со студентами:
+Получить студентов:
 
 ```bash
 curl http://localhost:8000/students
-curl -X POST http://localhost:8000/students \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Ivan Petrov","age":21,"email":"ivan@example.com"}'
 ```
 
-CastleMock:
+Проверить mock-прогноз:
 
 ```bash
 curl http://localhost:8000/external/weather
-curl -X POST http://localhost:8000/external/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"demo_user","password":"secret"}'
-curl -X PUT http://localhost:8000/external/user/update \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Demo User"}'
+```
+
+---
+
+## Тесты
+
+Backend:
+
+```bash
+docker compose --profile test run --rm tests
+```
+
+Frontend:
+
+```bash
+cd frontend
+npm ci
+npm run build
 ```
 
 ---
 
 ## Примечания
 
-- Индексы создаются автоматически при старте приложения.
-- У студентов уникальный `email`.
-- У записей на курс уникальная комбинация `student_id + course_id`.
-- Запросы обновления используют `PATCH` и принимают один или несколько изменяемых полей.
-- Все идентификаторы MongoDB валидируются как 24-символьные шестнадцатеричные `ObjectId`.
-- Данные CastleMock сохраняются в `castlemock_data_persistent/`, поэтому не теряются после перезапуска контейнеров.
+- MongoDB использует named volume `mongo_data`.
+- CastleMock использует named volume `castlemock_data`.
+- Email студента уникален без учёта регистра.
+- Повторное зачисление на тот же курс возвращает `409`.
+- Удаление студента или курса удаляет связанные зачисления транзакционно.
+- Все идентификаторы MongoDB проверяются как `ObjectId`.
+- Образ CastleMock закреплён на `v1.68`.
+- CastleMock предназначен для внутреннего тестового использования.
